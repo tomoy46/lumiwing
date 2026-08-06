@@ -1,1 +1,3 @@
-# lumiwing
+# LUMIWING
+
+Photography by Duck.
