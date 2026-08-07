@@ -1,0 +1,1 @@
+Images are served as reduced web versions. Original photographs are not stored here.
