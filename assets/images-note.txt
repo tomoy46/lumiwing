@@ -1,0 +1,1 @@
+New gallery photographs are added as reduced WebP versions with metadata removed.
