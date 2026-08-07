@@ -1,0 +1,1 @@
+LUMIWING image policy: publish the supplied image data without additional resizing, WebP conversion, or lossy recompression. Copyright remains with Duck. Browser-side copying cannot be technically prevented.
