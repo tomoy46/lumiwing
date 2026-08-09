@@ -1,38 +1,37 @@
-name: map uploaded images
+name: prepare uploaded portfolio image
 on:
   push:
     paths:
       - '.github/workflows/map-images.yml'
 
+permissions:
+  contents: write
+
 jobs:
-  map:
+  prepare:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install pillow
-      - name: Compute image hashes
+      - run: pip install pillow rawpy
+      - name: Convert CR3 and verify
         shell: python
         run: |
           from PIL import Image
+          import rawpy
           from pathlib import Path
 
-          targets = [
-              'assets/images/20210324151402_IMG_3930.jpg',
-              'assets/images/20210329140937_IMG_4110.jpg',
-              'assets/images/20220405114359_IMG_4400.jpg',
-              'assets/images/20220405114510_IMG_4405.jpg',
-              'assets/images/20220405124038_IMG_4497.jpg',
-              'assets/images/IMG_20220412_221557_193.jpg',
-              'assets/images/IMG_4606.JPG',
-              'assets/images/_MG_5197.JPG',
-              'assets/images/_MG_5381.JPG',
-          ]
+          src = Path('assets/images/_MG_5467.CR3')
+          out = Path('assets/images/round-table-dessert.jpg')
+          with rawpy.imread(str(src)) as raw:
+              rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
+          image = Image.fromarray(rgb)
+          image.save(out, 'JPEG', quality=94, subsampling=0, optimize=True)
 
-          def dhash(path, hash_size=16):
-              im = Image.open(path).convert('L').resize((hash_size + 1, hash_size))
+          def dhash(im, hash_size=16):
+              im = im.convert('L').resize((hash_size + 1, hash_size))
               px = list(im.getdata())
               bits = []
               for y in range(hash_size):
@@ -43,11 +42,11 @@ jobs:
                   val = (val << 1) | int(b)
               return f'{val:0{hash_size*hash_size//4}x}'
 
-          for p in targets:
-              path = Path(p)
-              try:
-                  with Image.open(path) as im:
-                      size = f'{im.width}x{im.height}'
-                  print(f'MAP {path.name} {size} {dhash(path)}')
-              except Exception as e:
-                  print(f'ERROR {path.name}: {e}')
+          print(f'CONVERTED {out} {image.width}x{image.height} {dhash(image)}')
+      - name: Commit converted image
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/images/round-table-dessert.jpg
+          git diff --cached --quiet || git commit -m "Add web-ready version of uploaded CR3 photo"
+          git push
