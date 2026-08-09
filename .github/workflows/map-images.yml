@@ -1,4 +1,4 @@
-name: prepare uploaded portfolio image
+name: inspect uploaded portfolio image
 on:
   push:
     paths:
@@ -8,45 +8,38 @@ permissions:
   contents: write
 
 jobs:
-  prepare:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install pillow rawpy
-      - name: Convert CR3 and verify
-        shell: python
+      - run: pip install pillow
+      - name: Inspect and convert
+        shell: bash
         run: |
+          file assets/images/_MG_5467.CR3 || true
+          xxd -l 32 assets/images/_MG_5467.CR3 || true
+          python - <<'PY'
           from PIL import Image
-          import rawpy
           from pathlib import Path
-
-          src = Path('assets/images/_MG_5467.CR3')
-          out = Path('assets/images/round-table-dessert.jpg')
-          with rawpy.imread(str(src)) as raw:
-              rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
-          image = Image.fromarray(rgb)
-          image.save(out, 'JPEG', quality=94, subsampling=0, optimize=True)
-
-          def dhash(im, hash_size=16):
-              im = im.convert('L').resize((hash_size + 1, hash_size))
-              px = list(im.getdata())
-              bits = []
-              for y in range(hash_size):
-                  row = px[y*(hash_size+1):(y+1)*(hash_size+1)]
-                  bits.extend(row[x] > row[x+1] for x in range(hash_size))
-              val = 0
-              for b in bits:
-                  val = (val << 1) | int(b)
-              return f'{val:0{hash_size*hash_size//4}x}'
-
-          print(f'CONVERTED {out} {image.width}x{image.height} {dhash(image)}')
+          src=Path('assets/images/_MG_5467.CR3')
+          out=Path('assets/images/round-table-dessert.jpg')
+          try:
+              im=Image.open(src)
+              print('PIL', im.format, im.size, im.mode)
+              im=im.convert('RGB')
+              im.save(out,'JPEG',quality=94,subsampling=0,optimize=True)
+              print('CREATED',out,im.size)
+          except Exception as e:
+              print('PIL_ERROR',repr(e))
+              raise
+          PY
       - name: Commit converted image
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/images/round-table-dessert.jpg
-          git diff --cached --quiet || git commit -m "Add web-ready version of uploaded CR3 photo"
+          git diff --cached --quiet || git commit -m "Add web-ready dessert photo"
           git push
