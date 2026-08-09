@@ -1,0 +1,53 @@
+name: map uploaded images
+on:
+  push:
+    paths:
+      - '.github/workflows/map-images.yml'
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Compute image hashes
+        shell: python
+        run: |
+          from PIL import Image
+          from pathlib import Path
+
+          targets = [
+              'assets/images/20210324151402_IMG_3930.jpg',
+              'assets/images/20210329140937_IMG_4110.jpg',
+              'assets/images/20220405114359_IMG_4400.jpg',
+              'assets/images/20220405114510_IMG_4405.jpg',
+              'assets/images/20220405124038_IMG_4497.jpg',
+              'assets/images/IMG_20220412_221557_193.jpg',
+              'assets/images/IMG_4606.JPG',
+              'assets/images/_MG_5197.JPG',
+              'assets/images/_MG_5381.JPG',
+          ]
+
+          def dhash(path, hash_size=16):
+              im = Image.open(path).convert('L').resize((hash_size + 1, hash_size))
+              px = list(im.getdata())
+              bits = []
+              for y in range(hash_size):
+                  row = px[y*(hash_size+1):(y+1)*(hash_size+1)]
+                  bits.extend(row[x] > row[x+1] for x in range(hash_size))
+              val = 0
+              for b in bits:
+                  val = (val << 1) | int(b)
+              return f'{val:0{hash_size*hash_size//4}x}'
+
+          for p in targets:
+              path = Path(p)
+              try:
+                  with Image.open(path) as im:
+                      size = f'{im.width}x{im.height}'
+                  print(f'MAP {path.name} {size} {dhash(path)}')
+              except Exception as e:
+                  print(f'ERROR {path.name}: {e}')
